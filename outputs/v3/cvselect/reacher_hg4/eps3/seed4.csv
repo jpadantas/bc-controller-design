@@ -1,0 +1,2 @@
+domain,seed,demo_eps,cv_Switch,cvleft_Switch,cv_Filter,cvleft_Filter,cv_Residual-box,cvleft_Residual-box
+reacher_hg4,4,3,0.01558929594574198,2,0.008772581496754616,0,0.0129521540450057,1

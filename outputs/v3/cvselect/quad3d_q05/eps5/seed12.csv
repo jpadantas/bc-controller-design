@@ -1,0 +1,2 @@
+domain,seed,demo_eps,cv_Switch,cvleft_Switch,cv_Filter,cvleft_Filter,cv_Residual-box,cvleft_Residual-box
+quad3d_q05,12,5,0.2683817608541503,1,0.26114671717187654,0,0.5668051452867398,0

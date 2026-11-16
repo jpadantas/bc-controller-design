@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<!-- Ownship state for the wingman policy bridge (fg_bridge.py), one CSV line per packet. -->
+<PropertyList>
+  <generic>
+    <output>
+      <line_separator>newline</line_separator>
+      <var_separator>,</var_separator>
+      <chunk><name>t</name><type>double</type><format>%.4f</format><node>/sim/time/elapsed-sec</node></chunk>
+      <chunk><name>lat</name><type>double</type><format>%.9f</format><node>/position/latitude-deg</node></chunk>
+      <chunk><name>lon</name><type>double</type><format>%.9f</format><node>/position/longitude-deg</node></chunk>
+      <chunk><name>alt</name><type>double</type><format>%.3f</format><node>/position/altitude-ft</node></chunk>
+      <chunk><name>roll</name><type>double</type><format>%.4f</format><node>/orientation/roll-deg</node></chunk>
+      <chunk><name>pitch</name><type>double</type><format>%.4f</format><node>/orientation/pitch-deg</node></chunk>
+      <chunk><name>heading</name><type>double</type><format>%.4f</format><node>/orientation/heading-deg</node></chunk>
+      <chunk><name>kias</name><type>double</type><format>%.4f</format><node>/velocities/airspeed-kt</node></chunk>
+      <chunk><name>vs_fps</name><type>double</type><format>%.4f</format><node>/velocities/vertical-speed-fps</node></chunk>
+      <chunk><name>nz</name><type>double</type><format>%.4f</format><node>/accelerations/pilot/z-accel-fps_sec</node></chunk>
+    </output>
+  </generic>
+</PropertyList>

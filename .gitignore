@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+paper/tables/*.tex
+paper/figures/*.pdf
+paper/figures/*.png
+outputs/flightgear/
+*.hdf5
+*.pt
+.venv*/

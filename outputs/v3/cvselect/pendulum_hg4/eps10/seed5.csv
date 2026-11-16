@@ -1,0 +1,2 @@
+domain,seed,demo_eps,cv_Switch,cvleft_Switch,cv_Filter,cvleft_Filter,cv_Residual-box,cvleft_Residual-box
+pendulum_hg4,5,10,0.02469879692941268,0,0.02469879692941268,0,0.024682994913045816,0
