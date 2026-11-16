@@ -60,6 +60,10 @@ def run(args):
         if not ok(x):
             return lab(x)
         saved = env.sim.get_state()
+        # robosuite state outside MjSim: the gripper integrates its command (current_action) and the env keeps
+        # time counters; both are restored with the simulator state so the look-ahead leaves no trace.
+        grip = env.robots[0].gripper
+        saved_grip, saved_t, saved_ct = grip.current_action.copy(), env.timestep, env.cur_time
         xp, safe = x, True
         for _ in range(H):
             o, _, _, _ = env.step(np.clip(bc(xp), -1, 1))
@@ -69,6 +73,7 @@ def run(args):
                 break
         env.sim.set_state(saved)
         env.sim.forward()
+        grip.current_action, env.timestep, env.cur_time = saved_grip, saved_t, saved_ct
         env.robots[0].controller.update(force=True)
         env.robots[0].controller.reset_goal()
         if safe:
@@ -112,8 +117,9 @@ def run(args):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--workers", type=int, default=6)
+    ap.add_argument("--seeds", default="0,1,2")
     a = ap.parse_args()
-    jobs = [(op, s) for s in S.SEEDS for op in L.OPERATORS]
+    jobs = [(op, int(s)) for s in a.seeds.split(",") for op in L.OPERATORS]
     with ProcessPoolExecutor(a.workers) as ex:
         for p in ex.map(run, jobs):
             print("done", p, flush=True)

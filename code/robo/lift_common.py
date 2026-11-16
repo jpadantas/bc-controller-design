@@ -139,6 +139,8 @@ def rollout(env, pol, x0=None, horizon=HORIZON, state=None):
         x = obs_vec(env._get_observations(force_update=True))
     else:
         x = x0
+    if hasattr(pol, "reset"):   # stateful policies (action chunking) start each rollout afresh
+        pol.reset()
     X, U, held = [], [], 0
     for _ in range(horizon):
         a = np.clip(np.asarray(pol(x), dtype=np.float64).ravel(), -1, 1)

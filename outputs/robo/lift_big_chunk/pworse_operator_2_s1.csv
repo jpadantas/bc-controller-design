@@ -1,0 +1,4 @@
+held_out,seed,method,nom_success,retention,recovery,fid_dist,fid_success
+worse_operator_2,1,BC-chunk,0.95,1.0,0.1,0.09991541504859924,0.96
+worse_operator_2,1,Switch-chunk,0.95,1.0,0.95,0.10018757730722427,0.96
+worse_operator_2,1,Support-chunk,1.0,1.0,0.95,0.09000448137521744,0.96

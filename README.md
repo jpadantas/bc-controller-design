@@ -61,6 +61,7 @@ cd ../robo                                                  # in the robosuite e
 ROBO_DATA=<path>/lift_mh_low_dim_v141.hdf5 MUJOCO_GL=disable LIFT_OUT=lift_big LIFT_STEPS=60000 LIFT_HIDDEN=1024 \
     python lift_study.py --workers 6
 ... same environment variables ... python lift_lookahead.py --workers 6   # look-ahead switch (simulator look-ahead)
+... same environment variables ... python lift_chunk.py --workers 6       # action-chunking BC and its switches
 ROBO_DATA=<path> python lift_between.py                                    # human reference distances
 ```
 
