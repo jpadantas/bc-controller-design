@@ -35,6 +35,7 @@ cd code/controlled
 python make_tables_v3.py        # Table 1 (main), smoothness and appendix tables
 python make_figures_v3.py       # Figure 1 (budget), P1 and frontier figures
 python make_mismatch_table.py   # Table 2 and the mismatched-labeler appendix tables
+python make_median_table.py     # medians and interquartile ranges of distance (appendix)
 python stats_v3.py              # every in-text statistic, the pairwise table, the rule evaluations
 cd ../robo
 python lift_table.py            # Table 4 (six human operators); between-operator reference from lift_between.py

@@ -25,4 +25,8 @@ Predictions:
  C5. The rule's choice is within 5% of the labeler's distance of the closest of {error switch, residual blend,
      support switch} on at least 80% of the units.
 
+Addendum (2026-11-17, before any policy result): the environment now resets without rebuilding the model
+(env.hard_reset = False; same physics, ~600x faster resets). With it the labeler recovered 9/10 perturbed starts
+in a second check (different random starts).
+
 Outcome: (to be filled in after the run)

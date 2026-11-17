@@ -47,7 +47,9 @@ def make_env(env_kwargs):
     import robosuite
     kw = dict(env_kwargs)
     kw.update(has_renderer=False, has_offscreen_renderer=False, use_camera_obs=False, ignore_done=True)
-    return robosuite.make("PickPlaceCan", **kw)
+    env = robosuite.make("PickPlaceCan", **kw)
+    env.hard_reset = False      # reset without rebuilding the model (same physics, far faster)
+    return env
 
 
 def obs_vec(o):

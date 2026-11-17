@@ -42,6 +42,11 @@ def p1():
             b = d[d.seed.isin(rng.choice(seeds, len(seeds)))]
             boot.append(np.nanmean(corr(b, "glued_final") - corr(b, "label_bias")))
         lo, hi = np.percentile(boot, [2.5, 97.5])
+        boot2 = []
+        for _ in range(500):   # the same for the labeler's own closed loop, which needs no demonstrator
+            b = d[d.seed.isin(rng.choice(seeds, len(seeds)))]
+            boot2.append(np.nanmean(corr(b, "labeler_final") - corr(b, "label_bias")))
+        say(f"{dn}: mean(labeler alone - label MSE) 95% bootstrap CI [{np.percentile(boot2, 2.5):.2f}, {np.percentile(boot2, 97.5):.2f}]")
         say(f"{dn}: glued {res['glued_final'].min():.2f}-{res['glued_final'].max():.2f}; "
             f"labeler alone {res['labeler_final'].min():.2f}-{res['labeler_final'].max():.2f}; "
             f"label MSE {res['label_bias'].min():.2f}-{res['label_bias'].max():.2f}; "
