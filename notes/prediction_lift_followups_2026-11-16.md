@@ -20,4 +20,7 @@ This prediction is written after seeing the discarded run but before any result 
 - LA2. Nominal success within 10 points of the support switch (83%).
 - LA3. Distance to the held-out operator within 0.5 cm of the support switch (7.0 cm).
 
-Outcome: (to be filled in after the run)
+Outcome (seeds 0-2, 18 units; written 2026-11-16 after the run): recovery 85% (support switch 86%, error switch
+71%; above the error switch for all six operators) -- LA1 held. Nominal success 76% (support switch 83%; lower for
+five of six operators) -- LA2 held (within 10 points), though the support switch is better. Distance 7.1 cm (support
+switch 7.0) -- LA3 held. BC acted on 83% of the steps from the operators' starts.
