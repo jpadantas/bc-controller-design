@@ -186,6 +186,26 @@ ALL16 = ["BC", "DART", "Switch", "Switch-DART", "Switch-support", "SoftGate", "S
 TOL = 0.05   # a choice is within tolerance if within 5% of the labeler's distance of the closest of the three
 
 
+RULE_PER = {}   # (decide, group) -> {choice: per-seed excess over the closest of three, / labeler's distance}
+
+
+def rule_extra(decide="dec", group="held-out", n_boot=10000):
+    """Paired comparison of the rule with always using the look-ahead switch (per-seed excess, seed bootstrap),
+    and the number of correct choices at other tolerances."""
+    if (decide, group) not in RULE_PER:
+        rule3(decide)
+    e = RULE_PER[(decide, group)]
+    rng = np.random.default_rng(0)
+    d = e["rule3"] - e["look-ahead"]
+    bs = [rng.choice(d, len(d)).mean() for _ in range(n_boot)]
+    w = stats.wilcoxon(e["rule3"], e["look-ahead"])
+    say(f"== Rule vs always look-ahead [{group}, decided on {decide}], n={len(d)}: mean excess "
+        f"{e['rule3'].mean():.3f} vs {e['look-ahead'].mean():.3f}; difference {d.mean():.3f} "
+        f"(95% bootstrap {np.percentile(bs, 2.5):.3f} to {np.percentile(bs, 97.5):.3f}); Wilcoxon p={w.pvalue:.3g}")
+    for tol in (0.0, 0.02, 0.05, 0.10, 0.20):
+        say(f"  within {tol:.0%}:", {k: int((v <= tol + 1e-12).sum()) for k, v in e.items()})
+
+
 def rule3(decide="inner"):
     """The three-outcome rule, frozen (paper/notes/prediction_heldout_2026-11-13.md): error switch if BC never
     leaves N from the inner nominal starts (as the labeler does); else the residual blend if it never leaves;
@@ -266,6 +286,7 @@ def rule3(decide="inner"):
             say(f"  [{gname}] {dn} {e}: n={len(t)} within-tolerance {row}; branches: {br}")
         if n == 0:
             continue
+        RULE_PER[(decide, gname)] = {k: np.array(v) for k, v in exc.items()}
         say(f"  [{gname}] seeds {n}; closest of three (exact) {hit}")
         say(f"  [{gname}] within {TOL:.0%} of the labeler's distance: {tol}")
         say(f"  [{gname}] mean excess over closest of three (/labeler's):", {k: round(float(np.mean(v)), 3) for k, v in exc.items()})

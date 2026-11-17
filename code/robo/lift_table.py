@@ -78,7 +78,7 @@ def main():
     ref = os.path.join(ROOT, "outputs", "robo", "between_operators.csv")
     if os.path.exists(ref):
         b = pd.read_csv(ref)
-        lines.append("Between operators & & & & " + "{:.1f}".format(100 * b.between.mean()) + " & " + BS + BS)
+        lines.append("Between operators & & & & " + "{:.1f} ({:.1f})".format(100 * b.between.mean(), 100 * b.within.mean()) + " & " + BS + BS)
     lines += [BS + "bottomrule", BS + "end{tabular}"]
     with open(os.path.join(TAB, "lift.tex"), "w", encoding="utf-8") as fh:
         fh.write("\n".join(lines) + "\n")
