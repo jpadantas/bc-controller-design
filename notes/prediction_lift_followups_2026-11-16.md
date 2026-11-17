@@ -24,3 +24,8 @@ Outcome (seeds 0-2, 18 units; written 2026-11-16 after the run): recovery 85% (s
 71%; above the error switch for all six operators) -- LA1 held. Nominal success 76% (support switch 83%; lower for
 five of six operators) -- LA2 held (within 10 points), though the support switch is better. Distance 7.1 cm (support
 switch 7.0) -- LA3 held. BC acted on 83% of the steps from the operators' starts.
+
+Five seeds (30 units, 2026-11-17; seeds 3-4 run with the same code after seeds 0-2 were seen): look-ahead switch
+recovery 85% (support 86%, error switch 72%; above the error switch for all six operators), nominal success 74%
+(support 80%; lower for five of six), distance 7.1 cm (support 7.0; support closer for three of six). LA1-LA3 hold.
+Action chunking, five seeds: chunked BC 92% nominal success, 5% recovery; support switch on it 96% / 85% / 6.9 cm.

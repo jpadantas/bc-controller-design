@@ -38,6 +38,7 @@ python make_mismatch_table.py   # Table 2 and the mismatched-labeler appendix ta
 python stats_v3.py              # every in-text statistic, the pairwise table, the rule evaluations
 cd ../robo
 python lift_table.py            # Table 4 (six human operators); between-operator reference from lift_between.py
+python lift_rule.py             # the frozen rule on Lift
 ```
 
 Rerunning the experiments (15 seeds each; CPU only):
