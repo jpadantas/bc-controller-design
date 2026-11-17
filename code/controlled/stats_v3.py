@@ -220,7 +220,7 @@ def rule3(decide="inner"):
     rule, the Reacher settings registered before running, and the held-out settings."""
     say(f"== Three-outcome rule per seed (error switch / residual blend / look-ahead switch); decided on {decide}")
     C = {"Switch": "switch", "Residual-box": "residual", "Filter": "look-ahead"}
-    keys = ["ruleCV", "rule3", "rule2", "switch", "residual", "look-ahead"]
+    keys = ["ruleCV", "rule3", "rule2", "switch", "residual", "look-ahead", "support"]
     groups = {"design": SETTINGS + [m for m in MISMATCH if not m[0].startswith("reacher")],
               "registered": [m for m in MISMATCH if m[0].startswith("reacher")], "held-out": HELDOUT}
     for gname, settings in groups.items():
@@ -278,7 +278,9 @@ def rule3(decide="inner"):
             picks = {"ruleCV": cvpick,
                      "rule3": np.where(bc_ok, f["Switch"], np.where(res_ok, f["Residual-box"], f["Filter"])),
                      "rule2": np.where(bc_ok, f["Switch"], f["Residual-box"]),
-                     "switch": f["Switch"], "residual": f["Residual-box"], "look-ahead": f["Filter"]}
+                     "switch": f["Switch"], "residual": f["Residual-box"], "look-ahead": f["Filter"],
+                     "support": (t["fid_common"]["Switch-support"].values if "Switch-support" in t["fid_common"]
+                                 else np.full(len(t), np.nan))}
             row = {}
             for k, v in picks.items():
                 hit[k] += int((v <= best + 1e-12).sum())
@@ -294,8 +296,8 @@ def rule3(decide="inner"):
         RULE_PER[(decide, gname)] = {k: np.array(v) for k, v in exc.items()}
         say(f"  [{gname}] seeds {n}; closest of three (exact) {hit}")
         say(f"  [{gname}] within {TOL:.0%} of the labeler's distance: {tol}")
-        say(f"  [{gname}] mean excess over closest of three (/labeler's):", {k: round(float(np.mean(v)), 3) for k, v in exc.items()})
-        say(f"  [{gname}] mean excess over closest of all 16 policies (/labeler's):", {k: round(float(np.mean(v)), 3) for k, v in ex16.items()})
+        say(f"  [{gname}] mean excess over closest of three (/labeler's):", {k: round(float(np.nanmean(v)), 3) for k, v in exc.items()})
+        say(f"  [{gname}] mean excess over closest of all 16 policies (/labeler's):", {k: round(float(np.nanmean(v)), 3) for k, v in ex16.items()})
 
 
 def sens():
