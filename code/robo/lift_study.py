@@ -52,7 +52,7 @@ def train(X, Y, Xnorm, seed, steps=None, batch=256, hidden=None):
     hidden = int(os.environ.get("LIFT_HIDDEN", "256")) if hidden is None else hidden
     import torch
     import torch.nn as nn
-    torch.set_num_threads(2)
+    torch.set_num_threads(int(os.environ.get("LIFT_THREADS", "2")))
     torch.manual_seed(seed)
     rng = np.random.default_rng(seed)
     m, s = Xnorm.mean(0), Xnorm.std(0) + 1e-6
