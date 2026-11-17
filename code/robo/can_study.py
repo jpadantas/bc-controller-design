@@ -11,6 +11,8 @@ residual blends and the scripted labeler (can_common.labeler). Same networks, st
 Writes outputs/robo/<CAN_OUT>/p{op}_s{seed}.csv.
 
     MUJOCO_GL=disable ROBO_CAN=<path> LIFT_STEPS=60000 LIFT_HIDDEN=1024 python can_study.py --workers 30 --seeds 0,1,2,3,4
+With --split, the networks of each missing unit are trained first (and kept in outputs/robo/<CAN_OUT>_nets) and the
+policies are then evaluated in parallel, one process per (unit, policy); results are the same, only faster.
 """
 import argparse
 import os
@@ -46,15 +48,24 @@ def start(env, rng, joint_sd, wide_can):
     return x, env.sim.get_state().flatten().copy()
 
 
+METHODS = ["BC", "Blend-box", "Residual-box", "Switch", "Support", "BC-chunk", "Switch-chunk", "Support-chunk",
+           "Labeler"]
+
+
 def run(args):
     import pandas as pd
     import torch
     from scipy.spatial import cKDTree
-    torch.set_num_threads(1)
-    held, seed = args
+    torch.set_num_threads(int(os.environ.get("LIFT_THREADS", "1")))
+    held, seed, only = (tuple(args) + (None,))[:3]   # only: "train" (train and keep the networks), a method, or None
     path = os.path.join(OUT, f"p{held}_s{seed}.csv")
+    if only not in (None, "train"):
+        path = os.path.join(OUT + "_parts", f"p{held}_s{seed}_{only}.csv")
     if os.path.exists(path):
         return path
+    nets = os.path.join(OUT + "_nets", f"p{held}_s{seed}_")
+    os.makedirs(OUT + "_nets", exist_ok=True)
+    cache = (lambda k: nets + k + ".pt") if only is not None else (lambda k: None)
     data, kw = C.load()
     env = C.make_env(kw)
     tr_ops = [o for o in C.OPERATORS if o != held]
@@ -65,12 +76,15 @@ def run(args):
     rng = np.random.default_rng(S.mseed("can", held, seed))
     Ssyn = np.array([start(env, rng, 0.5, True)[0] for _ in range(int(AUG_FRAC * len(O)))], dtype=np.float32)
     lab = C.labeler
-    bc = S.train(O, A, O, S.mseed("can", held, seed, "BC"))
+    bc = S.train(O, A, O, S.mseed("can", held, seed, "BC"), cache=cache("bc"))
     LK.K = 8
-    cnet = S.train(O, LK.chunk_targets(demos), O, S.mseed("can", held, seed, "BC-chunk"))
-    blend = S.train(np.concatenate([O, Ssyn]), np.concatenate([A, lab(Ssyn)]), O, S.mseed("can", held, seed, "Blend"))
+    cnet = S.train(O, LK.chunk_targets(demos), O, S.mseed("can", held, seed, "BC-chunk"), cache=cache("chunk"))
+    blend = S.train(np.concatenate([O, Ssyn]), np.concatenate([A, lab(Ssyn)]), O, S.mseed("can", held, seed, "Blend"),
+                    cache=cache("blend"))
     rnet = S.train(np.concatenate([O, Ssyn]), np.concatenate([A - lab(O), np.zeros((len(Ssyn), 7), np.float32)]), O,
-                   S.mseed("can", held, seed, "Residual"))
+                   S.mseed("can", held, seed, "Residual"), cache=cache("residual"))
+    if only == "train":
+        return nets
     mu, sd = O.mean(0), O.std(0) + 1e-6
     Z = (O - mu) / sd
     tree = cKDTree(Z)
@@ -113,6 +127,8 @@ def run(args):
     Ah = np.concatenate([d["actions"] for d in data[held]])
     rows = []
     for m, p in pols.items():
+        if only is not None and m != only:
+            continue
         r = dict(held_out=held, seed=seed, method=m)
         succ, kept, bcfrac = [], [], []
         for st in nom:
@@ -139,7 +155,7 @@ def run(args):
             r["act_mse"] = float(np.mean((np.clip(Ph, -1, 1) - Ah[::5]) ** 2))
         rows.append(r)
         print(held, seed, m, {k: round(v, 3) for k, v in r.items() if isinstance(v, float)}, flush=True)
-    os.makedirs(OUT, exist_ok=True)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     pd.DataFrame(rows).to_csv(path, index=False)
     return path
 
@@ -148,11 +164,25 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--seeds", default="0,1,2,3,4")
+    ap.add_argument("--split", action="store_true")
     a = ap.parse_args()
     jobs = [(op, int(s)) for s in a.seeds.split(",") for op in C.OPERATORS]
+    if not a.split:
+        with ProcessPoolExecutor(a.workers) as ex:
+            for p in ex.map(run, jobs):
+                print("done", p, flush=True)
+        return
+    import pandas as pd
+    jobs = [j for j in jobs if not os.path.exists(os.path.join(OUT, f"p{j[0]}_s{j[1]}.csv"))]
+    with ProcessPoolExecutor(min(a.workers, len(jobs))) as ex:
+        for p in ex.map(run, [j + ("train",) for j in jobs]):
+            print("trained", p, flush=True)
     with ProcessPoolExecutor(a.workers) as ex:
-        for p in ex.map(run, jobs):
+        for p in ex.map(run, [j + (m,) for j in jobs for m in METHODS]):
             print("done", p, flush=True)
+    for op, s in jobs:
+        parts = [pd.read_csv(os.path.join(OUT + "_parts", f"p{op}_s{s}_{m}.csv")) for m in METHODS]
+        pd.concat(parts).to_csv(os.path.join(OUT, f"p{op}_s{s}.csv"), index=False)
 
 
 if __name__ == "__main__":

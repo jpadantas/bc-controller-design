@@ -3,13 +3,13 @@
 Code and per-seed results for an evaluation of how to combine a policy cloned from nominal human demonstrations
 with an engineered controller: switches, monitors and safety filters, action mixtures, learned blends and
 residual blends, compared under one protocol in three controlled domains, on the robomimic multi-human Lift
-benchmark, and on a formation-flight case study with fighter pilots.
+and Can benchmarks, and on a formation-flight case study with fighter pilots.
 
 ## Layout
 
 ```
 code/controlled/   controlled domains (quadrotor, MuJoCo Reacher, pendulum): methods, runs, statistics, tables, figures
-code/robo/         robomimic Lift with six human operators (separate environment, see below)
+code/robo/         robomimic Lift and Can with six human operators (separate environment, see below)
 code/*.py          FlightGear formation-flight pipeline (needs FlightGear and the pilots' data; see below)
 outputs/v3/        per-seed results of the controlled domains (one CSV per domain, budget and seed)
 outputs/robo/      per-seed results of the robomimic study
@@ -65,10 +65,17 @@ ROBO_DATA=<path>/lift_mh_low_dim_v141.hdf5 MUJOCO_GL=disable LIFT_OUT=lift_big L
 ... same environment variables ... python lift_lookahead.py --workers 6   # look-ahead switch (simulator look-ahead)
 ... same environment variables ... python lift_chunk.py --workers 6       # action-chunking BC and its switches
 ROBO_DATA=<path> python lift_between.py                                    # human reference distances
+python lift_rule.py ; python lift_table.py                                 # the frozen rule; Table (lift.tex)
+ROBO_CAN=<path>/can_mh_low_dim_v141.hdf5 MUJOCO_GL=disable CAN_OUT=can LIFT_STEPS=60000 LIFT_HIDDEN=1024 \
+    python can_study.py --workers 18 [--split]                             # Can (--split: train, then evaluate in parallel)
+ROBO_TASK=can ROBO_CAN=<path> python lift_between.py                       # human reference distances on Can
+LIFT_OUT=can python lift_rule.py ; LIFT_TASK=can python lift_table.py      # the rule and the table (can.tex) on Can
 ```
+On Windows, each process that imports PyTorch reserves several GB of commit memory; with 30 workers some failed to
+start, so keep `--workers` at about 18 on a 64 GB machine.
 
 The robomimic Lift multi-human low-dimensional dataset is distributed by its authors
-(robomimic v0.3, `lift/mh/low_dim_v141.hdf5`); it is not included here.
+(robomimic v0.3, `lift/mh/low_dim_v141.hdf5`, and `can/mh/low_dim_v141.hdf5` for Can); they are not included here.
 
 ## Flight case study
 

@@ -1,0 +1,10 @@
+held_out,seed,method,nom_success,retention,support_bc_frac,recovery,fid_dist,fid_success,act_mse
+better_operator_2,1,BC,0.5,0.85,,0.05,0.3868255615234375,0.44,0.04242070019245148
+better_operator_2,1,Blend-box,0.5,1.0,,0.2,0.3892931640148163,0.36,0.03813822194933891
+better_operator_2,1,Residual-box,0.4,0.9,,0.1,0.325687974691391,0.48,0.06051434203982353
+better_operator_2,1,Switch,0.4,0.9,,0.05,0.3371120095252991,0.44,0.04242070019245148
+better_operator_2,1,Support,0.55,0.95,0.9797768190798966,0.1,0.3241897523403168,0.6,0.04242070019245148
+better_operator_2,1,BC-chunk,0.8,1.0,,0.15,0.2548556923866272,0.68,
+better_operator_2,1,Switch-chunk,0.85,1.0,,0.3,0.2513197064399719,0.6,
+better_operator_2,1,Support-chunk,0.8,1.0,1.0,0.3,0.25930124521255493,0.68,
+better_operator_2,1,Labeler,1.0,1.0,,0.9,0.3225589096546173,1.0,0.28508132696151733

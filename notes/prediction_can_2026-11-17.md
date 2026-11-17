@@ -29,4 +29,17 @@ Addendum (2026-11-17, before any policy result): the environment now resets with
 (env.hard_reset = False; same physics, ~600x faster resets). With it the labeler recovered 9/10 perturbed starts
 in a second check (different random starts).
 
-Outcome: (to be filled in after the run)
+Outcome (2026-11-17, all 30 units; 24 ran in one batch, the other 6 ran out of memory at start-up and were rerun
+with the same seeds and starts, networks trained first and policies evaluated in parallel; table: paper/tables/can.tex):
+ C1. HELD. Off-nominal recovery: BC 2.5%, chunked BC 15%. Support switch above the error switch on the same BC for
+     5 of 6 operators with either BC (feed-forward 12% vs 8%; chunked 34% vs 29%).
+ C2. FAILED. The residual blend is closer than the support switch (35.4 vs 36.2 cm; 4 of 6 operators) and recovers
+     MORE often (25% vs 12%). The box blend is not closer (37.4 cm).
+ C3. FAILED. The support switch is closer than the labeler alone for 3 of 6 operators (feed-forward; 36.2 vs 33.2 cm
+     on average) and 4 of 6 (chunked; 28.3 vs 33.2 cm).
+ C4. HELD. Nominal success: chunked BC 79% vs BC 42%, higher for all 6 operators.
+ C5. FAILED. The rule (support 25, error switch 4, residual 1) is correct for 16 of 30 units (53%).
+What differs from Lift: BC fails inside the demonstrated workspace. It fails from 58% of nominal starts but leaves the
+workspace from 11%, so at least four fifths of its failures happen where every gate lets it act (the support switch
+runs it 97% of the time). The labeler alone recovers from 91% and succeeds from 99%. Distances are large for every
+policy (28-38 cm; two operators' demonstrations: 26.5 cm, two of one operator's: 14.7 cm).

@@ -47,7 +47,8 @@ def mseed(*parts):
     return zlib.crc32("|".join(map(str, parts)).encode()) % (2 ** 31)
 
 
-def train(X, Y, Xnorm, seed, steps=None, batch=256, hidden=None):
+def train(X, Y, Xnorm, seed, steps=None, batch=256, hidden=None, cache=None):
+    """MLP regression; with `cache` (a .pt path) the trained weights are saved there, or loaded if present."""
     steps = STEPS if steps is None else steps
     hidden = int(os.environ.get("LIFT_HIDDEN", "256")) if hidden is None else hidden
     import torch
@@ -61,7 +62,9 @@ def train(X, Y, Xnorm, seed, steps=None, batch=256, hidden=None):
     opt = torch.optim.Adam(net.parameters(), lr=1e-3)
     Xt = torch.tensor((X - m) / s, dtype=torch.float32)
     Yt = torch.tensor(Y, dtype=torch.float32)
-    done = 0
+    done = steps if cache and os.path.exists(cache) else 0
+    if done:
+        net.load_state_dict(torch.load(cache))
     while done < steps:
         idx = torch.tensor(rng.permutation(len(Xt)))
         for b in range(0, len(Xt), batch):
@@ -71,6 +74,8 @@ def train(X, Y, Xnorm, seed, steps=None, batch=256, hidden=None):
             done += 1
             if done >= steps:
                 break
+    if cache and not os.path.exists(cache):
+        torch.save(net.state_dict(), cache)
     net.eval()
 
     def act(x):

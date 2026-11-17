@@ -6,6 +6,7 @@ error switch built on the same BC for every one of the six held-out operators (t
 Rows whose result files are missing are left out.
 
     python lift_table.py
+    LIFT_TASK=can python lift_table.py     (Can: outputs/robo/can/*.csv, chunked BC in the same files -> can.tex)
 """
 import glob
 import os
@@ -15,7 +16,8 @@ import pandas as pd
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TAB = os.path.join(ROOT, "paper", "tables")
-OUT = os.environ.get("LIFT_OUT", "lift_big")
+CAN = os.environ.get("LIFT_TASK") == "can"
+OUT = os.environ.get("LIFT_OUT", "can" if CAN else "lift_big")
 # (block, method, row name, reference for the marks); a block of None draws a rule before the row
 ROWS = [("", "BC", "BC", "Switch"), ("", "Switch", "Error switch", None), ("", "Support", "Support switch", "Switch"),
         ("_la", "Look-ahead", "Look-ahead switch", "Switch"), ("", "Blend-box", "Blend, box", "Switch"),
@@ -36,6 +38,8 @@ def load(suffix):
 
 def main():
     blocks = {s: load(s) for s in ("", "_la", "_chunk")}
+    if CAN:                            # can_study.py writes every policy, chunked BC included, to one file
+        blocks = {"": blocks[""], "_la": None, "_chunk": blocks[""]}
     base = blocks[""]
     seeds = sorted(base.seed.unique())
     if os.environ.get("LIFT_SEEDS"):   # e.g. LIFT_SEEDS=0,1,2 while later seeds are still running
@@ -75,12 +79,12 @@ def main():
                     t = t + "$^" + BS + "dagger$"
             cells.append(t)
         lines.append(name + " & " + " & ".join(cells) + " " + BS + BS)
-    ref = os.path.join(ROOT, "outputs", "robo", "between_operators.csv")
+    ref = os.path.join(ROOT, "outputs", "robo", "between_operators_can.csv" if CAN else "between_operators.csv")
     if os.path.exists(ref):
         b = pd.read_csv(ref)
         lines.append("Between operators & & & & " + "{:.1f} ({:.1f})".format(100 * b.between.mean(), 100 * b.within.mean()) + " & " + BS + BS)
     lines += [BS + "bottomrule", BS + "end{tabular}"]
-    with open(os.path.join(TAB, "lift.tex"), "w", encoding="utf-8") as fh:
+    with open(os.path.join(TAB, "can.tex" if CAN else "lift.tex"), "w", encoding="utf-8") as fh:
         fh.write("\n".join(lines) + "\n")
     print("\n".join(lines), "\nseeds", seeds)
 
