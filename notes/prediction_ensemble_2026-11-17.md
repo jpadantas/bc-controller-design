@@ -19,4 +19,15 @@ Predictions:
      six operators.
 Reported without a prediction: the fraction of steps in which BC acts under each monitor.
 
-Outcome: (to be filled in after the run)
+Outcome (filled in 2026-11-18 after the run; means over six held-out operators and three seeds, labeler once per
+operator; outputs/robo/ens/ens_results.csv, paper/tables/ens.tex):
+ E1. Failed in part. The ensemble switch recovers from 85% of off-nominal starts on Lift (support switch 81%), but
+     its distance is 9.7 cm against the support switch's 7.1 cm (support switch closer for five of six operators):
+     it hands control to the labeler in 70% of steps (BC acts 30%; support switch 92%).
+ E2. Failed. On Can the support switch leaves nominal success unchanged (46% vs. BC 46%), but the ensemble switch
+     raises it to 94% (higher for all six operators) and recovers from 88% (support switch 13%, labeler 92%). The
+     networks disagree where BC fails, inside the support. Distance 27.8 cm (support 35.7, labeler 33.4, BC 36.9;
+     two operators 26.5 in the Can study); closer than the labeler for five of six operators, than the support
+     switch for three.
+ E3. Held: on Lift the ensemble switch is closer than the labeler for six of six operators (9.7 vs. 11.6 cm).
+BC fraction: Lift ensemble 30%, support 92%; Can ensemble 53%, support 96%.

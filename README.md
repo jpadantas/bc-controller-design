@@ -70,6 +70,7 @@ ROBO_CAN=<path>/can_mh_low_dim_v141.hdf5 MUJOCO_GL=disable CAN_OUT=can LIFT_STEP
     python can_study.py --workers 18 [--split]                             # Can (--split: train, then evaluate in parallel)
 ROBO_TASK=can ROBO_CAN=<path> python lift_between.py                       # human reference distances on Can
 LIFT_OUT=can python lift_rule.py ; LIFT_TASK=can python lift_table.py      # the rule and the table (can.tex) on Can
+ROBO_DATA=<lift path> ROBO_CAN=<can path> MUJOCO_GL=disable LIFT_STEPS=60000 LIFT_HIDDEN=1024 LIFT_THREADS=2     python ens_study.py --workers 16 --seeds 0,1,2 ; python ens_table.py   # the ensemble (uncertainty) switch; ens.tex
 ```
 On Windows, each process that imports PyTorch reserves several GB of commit memory; with 30 workers some failed to
 start, so keep `--workers` at about 18 on a 64 GB machine.
