@@ -56,6 +56,7 @@ DECISION=1 ONLY=BC,Residual-box python run.py --domain ... # fresh decision star
 ONLY=Filter-learned,Filter python run.py --domain ...       # look-ahead switch with a learned model
 python run_inherit.py --domain quad3d --seeds 0-9           # labeler variants (P1), also run_inherit_box.py
 python run_sens.py --domain quad3d --eps 3,30 --seeds 0-9   # switch radii and a larger blend network
+python run_sens_support.py --domain quad3d --eps 3,30 --seeds 0-9   # the support switch's threshold (also reacher 3,30; pendulum 10,30)
 python theory_check.py --seeds 0-14                         # condition (b) in the quadrotor
 python fitcheck.py ... ; python cvselect.py ...             # open-loop fit check; cross-validated selection
 
@@ -71,6 +72,8 @@ ROBO_CAN=<path>/can_mh_low_dim_v141.hdf5 MUJOCO_GL=disable CAN_OUT=can LIFT_STEP
 ROBO_TASK=can ROBO_CAN=<path> python lift_between.py                       # human reference distances on Can
 LIFT_OUT=can python lift_rule.py ; LIFT_TASK=can python lift_table.py      # the rule and the table (can.tex) on Can
 ROBO_DATA=<lift path> ROBO_CAN=<can path> MUJOCO_GL=disable LIFT_STEPS=60000 LIFT_HIDDEN=1024 LIFT_THREADS=2     python ens_study.py --workers 16 --seeds 0,1,2 ; python ens_table.py   # the ensemble (uncertainty) switch; ens.tex
+(same variables) python fid_study.py --workers 8 --seeds 0,1,2               # fidelity per rollout (RMS, DTW, success); threshold
+python fid_table.py                                                        # its table (fid.tex)
 ```
 On Windows, each process that imports PyTorch reserves several GB of commit memory; with 30 workers some failed to
 start, so keep `--workers` at about 18 on a 64 GB machine.

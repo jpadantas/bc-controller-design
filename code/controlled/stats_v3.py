@@ -317,6 +317,23 @@ def sens():
             say(dn, e, out)
 
 
+def sens_support():
+    say("== Support-switch threshold (seeds 0-9): recovery / retention (inner) / distance (common); default q = 95")
+    for dn, eps in [("quad3d", [3, 30]), ("reacher", [3, 30]), ("pendulum", [10, 30])]:
+        main = A.load(dn)
+        for e in eps:
+            fs = glob.glob(os.path.join(A.OUT, "sens_support", dn, f"eps{e}_seed*.csv"))
+            if not fs:
+                continue
+            m = main[(main.demo_eps == e) & (main.seed <= 9) & main.method.isin(["Switch-support", "BC", "Labeler"])]
+            d = pd.concat([pd.concat([pd.read_csv(f) for f in fs]), m])
+            out = {}
+            for k, g in d.groupby("method"):
+                out[k] = (round(100 * g[g.radius > 0].success.mean()), round(100 * g.groupby("seed").kept_inner.first().mean()),
+                          round(g.groupby("seed").fid_common.first().mean(), 4))
+            say(dn, e, out)
+
+
 def invariance():
     f = os.path.join(A.OUT, "theory_check_quad.csv")
     if not os.path.exists(f):
@@ -371,5 +388,6 @@ if __name__ == "__main__":
     rule3('probe0')
     rule3('dec')
     sens()
+    sens_support()
     with open(OUT_TXT, "w", encoding="utf-8") as fh:
         fh.write("\n".join(lines) + "\n")
