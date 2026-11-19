@@ -31,4 +31,20 @@ Predictions (per held-out operator: mean over three seeds):
  S6. The frozen rule (error switch if BC never leaves the workspace from the nominal resets, else the residual blend
      if it never leaves, else the full-state monitor) picks the full-state monitor for at least 15 of 18 units.
 
-Outcome: (to be filled in after the run)
+Outcome (run finished 2026-11-19; outputs/robo/square/square_rollouts.csv, code/robo/square_table.py; the run was
+restarted once with fewer workers after an out-of-memory error, with 94 of 96 evaluations kept from the first attempt):
+ S1 held: BC succeeds from 6% of nominal resets (3-10% per operator).
+ S2 failed for one operator: the support switch raises success by 2 points on the mean (9% vs 6%) and by fewer than
+    10 points for five operators, but by exactly 10 points for one (worse_operator_1; the bound was strict).
+ S3 held: the ensemble switch raises success by at least 20 points for all six operators (73% vs 6%) and recovers from
+    76% of off-nominal starts against 26% for the support switch.
+ S4 held, narrowly: on successful rollouts the ensemble switch is closer than the labeler in time-indexed RMS gap for
+    five of six operators, but by little (17.9 vs 18.5 cm); its DTW gap is 8.4 vs 8.6 cm (ratio 0.99). It lets BC act
+    in 33% of steps from nominal resets.
+ S5 held: the residual blend recovers from 11% (ensemble switch 76%), less for all six operators.
+ S6 held: the frozen rule picks the full-state monitor for 17 of 18 units (BC leaves the workspace from some nominal
+    reset in every unit; the residual blend never does in one).
+Not predicted: the labeler alone succeeds from 99% of nominal resets and recovers from 87%, more than any combination,
+and is about as close to the operators as the ensemble switch (18.4 vs 18.8 cm over all rollouts). By the paper's own
+criterion (use the controller alone if the chosen policy is not clearly closer to held-out demonstrations), the
+labeler alone is the choice on Square.

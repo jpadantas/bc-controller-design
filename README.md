@@ -74,7 +74,9 @@ LIFT_OUT=can python lift_rule.py ; LIFT_TASK=can python lift_table.py      # the
 ROBO_DATA=<lift path> ROBO_CAN=<can path> MUJOCO_GL=disable LIFT_STEPS=60000 LIFT_HIDDEN=1024 LIFT_THREADS=2     python ens_study.py --workers 16 --seeds 0,1,2 ; python ens_table.py   # the ensemble (uncertainty) switch; ens.tex
 (same variables) python fid_study.py --workers 8 --seeds 0,1,2               # fidelity per rollout (RMS, DTW, success); threshold
 python fid_table.py                                                        # its table (fid.tex)
-ROBO_SQUARE=<path>/square_mh_low_dim_v141.hdf5 MUJOCO_GL=disable LIFT_STEPS=60000 LIFT_HIDDEN=1024 LIFT_THREADS=2 \n    python square_study.py --workers 16 --seeds 0,1,2                     # Square: the confirmatory test
+ROBO_SQUARE=<path>/square_mh_low_dim_v141.hdf5 MUJOCO_GL=disable LIFT_STEPS=60000 LIFT_HIDDEN=1024 LIFT_THREADS=2 \
+    python square_study.py --workers 12 --seeds 0,1,2                     # Square: the confirmatory test (rerun to resume)
+python square_table.py                                                     # its table (square.tex) and predictions S1-S6
 ```
 On Windows, each process that imports PyTorch reserves several GB of commit memory; with 30 workers some failed to
 start, so keep `--workers` at about 18 on a 64 GB machine.
