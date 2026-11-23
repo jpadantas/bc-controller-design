@@ -2,14 +2,44 @@
 
 Code and per-seed results for an evaluation of how to combine a policy cloned from nominal human demonstrations
 with an engineered controller: switches, monitors and safety filters, action mixtures, learned blends and
-residual blends, compared under one protocol in three controlled domains, on the robomimic multi-human Lift
-and Can benchmarks, and on a formation-flight case study with fighter pilots.
+residual blends, compared under one protocol in three controlled domains, on the robomimic multi-human Lift,
+Can and Square tasks, and on a formation-flight case study with fighter pilots.
+
+## Scoring a new method (bcbench)
+
+`code/controlled/bcbench.py` scores any new combination of a cloned policy and an engineered controller on the
+controlled domains with the paper's frozen protocol: the same demonstrations, probes, nominal starts and metrics, so
+its numbers sit next to the released per-seed results of the paper's methods.
+
+```python
+import bcbench
+def my_method(task):              # task.D: domain (simulator, labeler, nominal set); task.O, task.A: demonstrations
+    bc = task.bc()                # the paper's BC for this seed; task.train(...) fits a network with the same budget
+    return lambda o: bc(o)        # a policy: batch of observations -> batch of actions in [-1, 1]
+df = bcbench.evaluate(my_method, split="dev")
+table, tests = bcbench.compare(df)   # means per setting next to the paper's methods; paired Wilcoxon tests
+```
+
+or `python bcbench.py --method mymodule:my_method --split dev --workers 8`. Splits: `dev` (8 settings of the main
+results), `stress` (9 settings with a labeler unlike the demonstrator) and `test` (the 12 settings held out to test
+the frozen rule; use them once). Metrics per seed: recovery, retention, distance to the demonstrator from common
+nominal starts, and fidelity gain (1 - distance / labeler's distance). `--method bcbench:example_support_switch`
+rebuilds the paper's support switch through this interface and reproduces its released numbers exactly. A split
+with 15 seeds takes about an hour on 8 CPU cores for a method of the size of the paper's.
+
+| Benchmark card | |
+|---|---|
+| Intended use | comparing ways to combine a cloned policy with an engineered controller (recovery, staying nominal, fidelity) |
+| Data | scripted demonstrators and labelers, generated on the fly from fixed seeds; robomimic data as distributed by its authors |
+| Not included | the fighter pilots' telemetry (collected under a project authorization with informed consent; not released) |
+| Known limits | low-dimensional state, deterministic noise-free simulators, scripted demonstrators in the controlled domains |
+| License | MIT (code and results) |
 
 ## Layout
 
 ```
 code/controlled/   controlled domains (quadrotor, MuJoCo Reacher, pendulum): methods, runs, statistics, tables, figures
-code/robo/         robomimic Lift and Can with six human operators (separate environment, see below)
+code/robo/         robomimic Lift, Can and Square with six human operators (separate environment, see below)
 code/*.py          FlightGear formation-flight pipeline (needs FlightGear and the pilots' data; see below)
 outputs/v3/        per-seed results of the controlled domains (one CSV per domain, budget and seed)
 outputs/robo/      per-seed results of the robomimic study
