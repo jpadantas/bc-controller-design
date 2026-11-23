@@ -65,7 +65,7 @@ def trunk(nin, nout, hidden):
 
 def temb(t, dim=32):
     import torch
-    f = torch.exp(-np.log(1000.0) * torch.arange(dim // 2, dtype=torch.float32) / (dim // 2))
+    f = torch.exp(-np.log(1000.0) * torch.arange(dim // 2, dtype=torch.float32, device=t.device) / (dim // 2))
     a = t.float()[:, None] * f[None, :]
     return torch.cat([a.sin(), a.cos()], 1)
 
@@ -84,14 +84,16 @@ def fit(cls, O, A, Ach, seed, cache):
     rng = np.random.default_rng(seed)
     hidden, steps, batch = int(os.environ.get("LIFT_HIDDEN", "1024")), S.STEPS, 256
     m, s = O.mean(0), O.std(0) + 1e-6
-    Xt = torch.tensor((O - m) / s, dtype=torch.float32)
+    dev = os.environ.get("STRONG_DEVICE", "cpu")
+    Xt = torch.tensor((O - m) / s, dtype=torch.float32, device=dev)
     if cls == "GMM":
         net = trunk(O.shape[1], NMIX * (1 + 2 * 7), hidden)
-        Yt = torch.tensor(A, dtype=torch.float32)
+        Yt = torch.tensor(A, dtype=torch.float32, device=dev)
     else:
         net = trunk(O.shape[1] + H * 7 + 32, H * 7, hidden)
-        Yt = torch.tensor(Ach, dtype=torch.float32)
-        ab = torch.tensor(alphas_bar())
+        Yt = torch.tensor(Ach, dtype=torch.float32, device=dev)
+        ab = torch.tensor(alphas_bar(), device=dev)
+    net.to(dev)
     opt = torch.optim.Adam(net.parameters(), lr=1e-4 if cls == "Diffusion" else 1e-3)
 
     def gmm(out):
@@ -101,11 +103,11 @@ def fit(cls, O, A, Ach, seed, cache):
         return lg, mu, ls
 
     if os.path.exists(cache):
-        net.load_state_dict(torch.load(cache))
+        net.load_state_dict(torch.load(cache, map_location=dev))
     else:
         done = 0
         while done < steps:
-            perm = torch.tensor(rng.permutation(len(Xt)))
+            perm = torch.tensor(rng.permutation(len(Xt)), device=dev)
             for b in range(0, len(Xt), batch):
                 j = perm[b:b + batch]
                 if cls == "GMM":
@@ -114,8 +116,8 @@ def fit(cls, O, A, Ach, seed, cache):
                     lp = (-0.5 * ((y - mu) / ls.exp()) ** 2 - ls - 0.5 * np.log(2 * np.pi)).sum(-1)
                     loss = -torch.logsumexp(torch.log_softmax(lg, 1) + lp, 1).mean()
                 else:
-                    t = torch.randint(0, TN, (len(j),))
-                    eps = torch.randn(len(j), H * 7)
+                    t = torch.randint(0, TN, (len(j),), device=dev)
+                    eps = torch.randn(len(j), H * 7, device=dev)
                     a = ab[t][:, None]
                     xn = a.sqrt() * Yt[j] + (1 - a).sqrt() * eps
                     loss = ((net(torch.cat([Xt[j], xn, temb(t)], 1)) - eps) ** 2).mean()
@@ -123,7 +125,10 @@ def fit(cls, O, A, Ach, seed, cache):
                 done += 1
                 if done >= steps:
                     break
-        torch.save(net.state_dict(), cache)
+        tmp = cache + f".{os.getpid()}.tmp"
+        torch.save({k: v.cpu() for k, v in net.state_dict().items()}, tmp)
+        os.replace(tmp, cache)
+    net.to("cpu")
     net.eval()
     return Policy(cls, net, m, s, gmm, seed)
 
@@ -299,14 +304,18 @@ def main():
     ap.add_argument("--seeds", default="0,1,2")
     ap.add_argument("--tasks", default=",".join(TASKS))
     ap.add_argument("--smoke", action="store_true", help="tiny run to check the pipeline")
+    ap.add_argument("--train-only", action="store_true", help="only train (e.g. STRONG_DEVICE=cuda, --reverse)")
+    ap.add_argument("--reverse", action="store_true")
     a = ap.parse_args()
     seeds = [int(s) for s in a.seeds.split(",")]
     jobs = [(t, op, s, c) for t in a.tasks.split(",") for s in seeds for op in L.OPERATORS for c in CLASSES]
     if a.smoke:
         jobs = jobs[:2]
     with ProcessPoolExecutor(a.workers) as ex:
-        for j in ex.map(train_job, jobs):
+        for j in ex.map(train_job, jobs[::-1] if a.reverse else jobs):
             print("trained", j, flush=True)
+    if a.train_only:
+        return
     with ProcessPoolExecutor(a.workers) as ex:
         for p in ex.map(eval_job, jobs):
             print("done", p, flush=True)
