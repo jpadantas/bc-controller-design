@@ -24,8 +24,7 @@ or `python bcbench.py --method mymodule:my_method --split dev --workers 8`. Spli
 results), `stress` (9 settings with a labeler unlike the demonstrator) and `test` (the 12 settings held out to test
 the frozen rule; use them once). Metrics per seed: recovery, retention, distance to the demonstrator from common
 nominal starts, and fidelity gain (1 - distance / labeler's distance). `--method bcbench:example_support_switch`
-rebuilds the paper's support switch through this interface and reproduces its released numbers exactly. A split
-with 15 seeds takes about an hour on 8 CPU cores for a method of the size of the paper's.
+rebuilds the paper's support switch through this interface and reproduces its released numbers exactly.
 
 | Benchmark card | |
 |---|---|
