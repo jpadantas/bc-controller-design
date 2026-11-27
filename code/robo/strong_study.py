@@ -35,7 +35,43 @@ NETS = OUT + "_nets"
 N_EVAL = int(os.environ.get("STRONG_NEVAL", "20"))
 QE = 95
 NMIX, H, EXE, TN, TI, NS = 5, 16, 8, 100, 10, 4
-CLASSES = ["GMM", "Diffusion"]
+CLASSES = os.environ.get("STRONG_CLASSES", "GMM,Diffusion").split(",")
+# STRONG_RECIPE=v2 (revision after the first run, see paper/notes/prediction_strong_v2_2026-11-27.md): diffusion
+# on per-dimension standardized actions, EMA weights (0.999), cosine learning-rate decay, STRONG_DIFF_STEPS steps
+V2 = os.environ.get("STRONG_RECIPE", "v1") == "v2"
+DIFF_STEPS = int(os.environ.get("STRONG_DIFF_STEPS", "0"))
+FILM = V2 and os.environ.get("STRONG_DENOISER", "film") == "film"
+
+
+def film_net(nobs, hidden, blocks=4, cdim=256):
+    """Residual MLP denoiser whose every block is modulated (FiLM) by the observation and the noise level, as in
+    published diffusion policies. Takes the same concatenated input [obs, noisy chunk, time embedding] as trunk()."""
+    import torch.nn as nn
+
+    class Net(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.cond = nn.Sequential(nn.Linear(nobs + 32, cdim), nn.Mish(), nn.Linear(cdim, cdim))
+            self.inp = nn.Linear(H * 7, hidden)
+            self.lin1 = nn.ModuleList(nn.Linear(hidden, hidden) for _ in range(blocks))
+            self.lin2 = nn.ModuleList(nn.Linear(hidden, hidden) for _ in range(blocks))
+            self.mod = nn.ModuleList(nn.Linear(cdim, 2 * hidden) for _ in range(blocks))
+            self.norm = nn.ModuleList(nn.LayerNorm(hidden) for _ in range(blocks))
+            self.out = nn.Sequential(nn.Mish(), nn.Linear(hidden, H * 7))
+            self.act = nn.Mish()
+
+        def forward(self, u):
+            import torch
+            z, x, te = u[:, :nobs], u[:, nobs:nobs + H * 7], u[:, nobs + H * 7:]
+            c = self.cond(torch.cat([z, te], 1))
+            h = self.inp(x)
+            for l1, l2, m, n in zip(self.lin1, self.lin2, self.mod, self.norm):
+                sc, sh = m(c).chunk(2, 1)
+                y = l1(self.act(n(h))) * (1 + sc) + sh
+                h = h + l2(self.act(y))
+            return self.out(h)
+
+    return Net()
 GATES = ["alone", "Support", "Uncertainty"]
 TASKS = ["lift", "can", "square"]
 
@@ -90,11 +126,24 @@ def fit(cls, O, A, Ach, seed, cache):
         net = trunk(O.shape[1], NMIX * (1 + 2 * 7), hidden)
         Yt = torch.tensor(A, dtype=torch.float32, device=dev)
     else:
-        net = trunk(O.shape[1] + H * 7 + 32, H * 7, hidden)
-        Yt = torch.tensor(Ach, dtype=torch.float32, device=dev)
+        net = film_net(O.shape[1], hidden) if FILM else trunk(O.shape[1] + H * 7 + 32, H * 7, hidden)
+        am, asd = np.zeros(H * 7, np.float32), np.ones(H * 7, np.float32)
+        if V2:
+            am = np.tile(A.mean(0), H).astype(np.float32)
+            asd = np.tile(A.std(0) + 1e-3, H).astype(np.float32)
+        Yn = (Ach - am) / asd
+        lim = (np.percentile(Yn, 0.5, 0), np.percentile(Yn, 99.5, 0)) if V2 else (np.full(H * 7, -1.5), np.full(H * 7, 1.5))
+        Yt = torch.tensor(Yn, dtype=torch.float32, device=dev)
         ab = torch.tensor(alphas_bar(), device=dev)
+        if V2 and DIFF_STEPS:
+            steps = DIFF_STEPS
     net.to(dev)
-    opt = torch.optim.Adam(net.parameters(), lr=1e-4 if cls == "Diffusion" else 1e-3)
+    opt = torch.optim.Adam(net.parameters(), lr=(3e-4 if V2 else 1e-4) if cls == "Diffusion" else 1e-3)
+    use_ema = V2 and cls == "Diffusion"
+    if use_ema:
+        import copy
+        ema = copy.deepcopy(net)
+        sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, steps)
 
     def gmm(out):
         lg = out[:, :NMIX]
@@ -120,24 +169,34 @@ def fit(cls, O, A, Ach, seed, cache):
                     eps = torch.randn(len(j), H * 7, device=dev)
                     a = ab[t][:, None]
                     xn = a.sqrt() * Yt[j] + (1 - a).sqrt() * eps
-                    loss = ((net(torch.cat([Xt[j], xn, temb(t)], 1)) - eps) ** 2).mean()
+                    target = Yt[j] if V2 else eps  # v2 predicts the clean chunk ("sample" prediction)
+                    loss = ((net(torch.cat([Xt[j], xn, temb(t)], 1)) - target) ** 2).mean()
                 opt.zero_grad(); loss.backward(); opt.step()
+                if use_ema:
+                    sched.step()
+                    with torch.no_grad():
+                        for pe, pn in zip(ema.parameters(), net.parameters()):
+                            pe.mul_(0.999).add_(pn, alpha=0.001)
                 done += 1
                 if done >= steps:
                     break
+        if use_ema:
+            net = ema
         tmp = cache + f".{os.getpid()}.tmp"
         torch.save({k: v.cpu() for k, v in net.state_dict().items()}, tmp)
         os.replace(tmp, cache)
     net.to("cpu")
     net.eval()
-    return Policy(cls, net, m, s, gmm, seed)
+    norm = (am, asd, lim) if cls == "Diffusion" else None
+    return Policy(cls, net, m, s, gmm, seed, norm)
 
 
 class Policy:
     """Stateful policy (chunk buffer, sampling rng) with an uncertainty score; reset() at each rollout."""
 
-    def __init__(self, cls, net, m, s, gmm, seed):
+    def __init__(self, cls, net, m, s, gmm, seed, norm=None):
         self.cls, self.net, self.m, self.s, self.gmm, self.seed = cls, net, m, s, gmm, seed
+        self.norm = norm
         self.ab = alphas_bar()
         self.reset()
 
@@ -166,14 +225,20 @@ class Policy:
         zz = z.repeat_interleave(n, 0)
         xt = torch.tensor(self.rng.standard_normal((B * n, H * 7)), dtype=torch.float32)
         ts = np.linspace(TN - 1, 0, TI).round().astype(int)
+        lo, hi = (torch.tensor(np.asarray(v), dtype=torch.float32) for v in self.norm[2])
         with torch.no_grad():
             for k, t in enumerate(ts):
                 a = float(self.ab[t])
                 ap = float(self.ab[ts[k + 1]]) if k + 1 < len(ts) else 1.0
-                eps = self.net(torch.cat([zz, xt, temb(torch.full((B * n,), int(t)))], 1))
-                x0 = ((xt - (1 - a) ** 0.5 * eps) / a ** 0.5).clamp(-1.5, 1.5)
+                out = self.net(torch.cat([zz, xt, temb(torch.full((B * n,), int(t)))], 1))
+                x0 = out if V2 else (xt - (1 - a) ** 0.5 * out) / a ** 0.5
+                eps = out
+                x0 = torch.maximum(torch.minimum(x0, hi), lo)
+                if V2:  # noise consistent with the clipped estimate (as in standard DDIM implementations)
+                    eps = (xt - a ** 0.5 * x0) / (1 - a) ** 0.5
                 xt = ap ** 0.5 * x0 + (1 - ap) ** 0.5 * eps
-        return xt.numpy().reshape(B, n, H, 7)
+        am, asd, _ = self.norm
+        return (xt.numpy() * asd + am).reshape(B, n, H, 7)
 
     def uncertainty(self, x):
         """Predictive spread (rows of x): total variance of the mixture, or of the first action over NS samples."""
