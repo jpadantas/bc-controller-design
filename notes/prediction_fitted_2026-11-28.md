@@ -17,4 +17,12 @@ Predictions (mean over seeds):
  F4. The fitted law alone is closer to the demonstrator from nominal starts (fid_common) than the engineered labeler
      in at least four of five settings.
 
-Outcome: (to be filled in after the run)
+Outcome (2026-11-28; quad3d 3 / quad3d 10 / reacher 3 / reacher 10 / pendulum 30, means over ten seeds):
+ F1 holds. Action error, fitted vs engineered: 0.031 vs 0.716, 0.024 vs 0.717, 0.036 vs 0.100, 0.013 vs 0.101,
+    0.044 vs 0.219.
+ F2 holds. Recovery of the fitted law alone: 4, 24, 2, 1, 0% (engineered 100, 100, 95, 95, 100%).
+ F3 holds (5/5). Mean recovery of the five combinations, fitted vs engineered: 5 vs 100, 25 vs 100, 3 vs 80,
+    4 vs 85, 3 vs 100%.
+ F4 fails (1/5). Distance from nominal starts, fitted law alone vs engineered (x100): 106.9 vs 62.5, 18.7 vs 62.5,
+    8.5 vs 1.1, 1.5 vs 1.1, 207.9 vs 8.2. Its closed loop leaves the nominal set from many nominal starts
+    (retention 64, 98, 13, 81, 0%), so it loses even on fidelity.
