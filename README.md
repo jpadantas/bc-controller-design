@@ -1,4 +1,4 @@
-# Design Considerations for Combining Behavior Cloning with Engineered Controllers
+# Combining Behavior Cloning with Engineered Controllers: A Benchmark with Scripted and Human Demonstrators
 
 Code and per-seed results for an evaluation of how to combine a policy cloned from nominal human demonstrations
 with an engineered controller: switches, monitors and safety filters, action mixtures, learned blends and
