@@ -22,4 +22,11 @@ Predictions (means over held-out operators, each the mean over three seeds; "MLP
      operator's timed path (time-indexed RMS over all rollouts from the operator's starts) for at least five of six
      operators.
 
-Outcome: (to be filled in after the run)
+Outcome (2026-11-28, code/robo/strong_table.py; means over operators, %):
+ D1 holds. Revised diffusion alone: Can 96 vs MLP 46, Square 71 vs 6 (Lift 98 vs 63).
+ D2 holds. Support minus alone: Can +0.8, Square +0.0.
+ D3 holds. Uncertainty-switch recovery vs ensemble switch: Can 52 vs 88, Square 8 vs 76.
+ D4 holds. Support switch closer than the labeler on Lift for 6/6 operators (6.9 vs 11.6 cm).
+Not predicted: recovery of diffusion alone 11 / 30 / 4 (Lift / Can / Square), with the support switch 89 / 61 / 30
+(labeler alone 90 / 92 / 87). Timed-path gap over all rollouts from the operator's starts, diffusion alone vs labeler:
+Can 24.3 vs 33.4 cm, Square 17.2 vs 18.4 cm.

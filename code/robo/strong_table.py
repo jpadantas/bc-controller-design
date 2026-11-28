@@ -17,10 +17,16 @@ TASKS = ["lift", "can", "square"]
 
 
 def load():
-    f = os.path.join(ROOT, "outputs", "robo", "strong", "strong_rollouts.csv")
-    if os.path.exists(f):
-        return pd.read_csv(f)
-    return pd.concat(pd.read_csv(p) for p in glob.glob(os.path.join(ROOT, "outputs", "robo", "strong_parts", "*.csv")))
+    """Registered run (strong) and the revised diffusion recipe (strong_v2, class renamed DiffusionR)."""
+    out = []
+    for run in ("strong", "strong_v2"):
+        f = os.path.join(ROOT, "outputs", "robo", run, "strong_rollouts.csv")
+        d = pd.read_csv(f) if os.path.exists(f) else pd.concat(
+            pd.read_csv(p) for p in glob.glob(os.path.join(ROOT, "outputs", "robo", run + "_parts", "*.csv")))
+        if run == "strong_v2":
+            d["cls"] = "DiffusionR"
+        out.append(d)
+    return pd.concat(out)
 
 
 def per_operator(d):
@@ -38,11 +44,11 @@ def references():
     """Main MLP BC and the labeler alone, same per-operator quantities."""
     out = {}
     e = pd.read_csv(os.path.join(ROOT, "outputs", "robo", "ens", "ens_results.csv"))
-    for (t, h, m), x in e[e.method.isin(["BC", "Labeler"])].groupby(["task", "held_out", "method"]):
+    for (t, h, m), x in e[e.method.isin(["BC", "Labeler", "Ensemble"])].groupby(["task", "held_out", "method"]):
         out[(t, h, m)] = dict(succ=x.nom_success.mean(), rec=x.recovery.mean(), path=x.fid_dist.mean(),
                               path_s=float("nan"), bc=float("nan"))
     s = pd.read_csv(os.path.join(ROOT, "outputs", "robo", "square", "square_rollouts.csv"))
-    for (h, m), x in s[s.method.isin(["BC", "Labeler"])].groupby(["held_out", "method"]):
+    for (h, m), x in s[s.method.isin(["BC", "Labeler", "Ensemble"])].groupby(["held_out", "method"]):
         fid = x[x.kind == "fid"]
         out[("square", h, m)] = dict(succ=x[x.kind == "nom"].success.mean(), rec=x[x.kind == "off"].success.mean(),
                                      path=fid.rms.mean(), path_s=fid[fid.success == 1].rms.mean(), bc=float("nan"))
@@ -90,11 +96,25 @@ def score(op):
             ok5 &= r >= 0.9
             print(f"G5 square {c}+{g} RMS on successes / labeler: {r:.3f}")
     print("   holds" if ok5 else "   fails")
+    print("--- revised diffusion (prediction_strong_v2_2026-11-27.md)")
+    ok = all(v(t, "DiffusionR/alone", "succ").mean() > v(t, "BC", "succ").mean() for t in ["can", "square"])
+    print("D1", {t: (round(100 * v(t, "DiffusionR/alone", "succ").mean()), round(100 * v(t, "BC", "succ").mean()))
+                 for t in ["can", "square"]}, "holds" if ok else "fails")
+    g = {t: round(100 * (v(t, "DiffusionR/Support", "succ").mean() - v(t, "DiffusionR/alone", "succ").mean()), 1)
+         for t in ["can", "square"]}
+    print("D2", g, "holds" if all(x < 10 for x in g.values()) else "fails")
+    g = {t: (round(100 * v(t, "DiffusionR/Uncertainty", "rec").mean()), round(100 * v(t, "Ensemble", "rec").mean()))
+         for t in ["can", "square"]}
+    print("D3", g, "holds" if all(a < b for a, b in g.values()) else "fails")
+    n = int((v("lift", "DiffusionR/Support", "path") < v("lift", "Labeler", "path")).sum())
+    print(f"D4 {n}/6", "holds" if n >= 5 else "fails")
 
 
 ROWS = [("BC", "MLP (main studies)"), ("GMM/alone", "GMM"), ("GMM/Support", "\\quad + support switch"),
         ("GMM/Uncertainty", "\\quad + uncertainty switch"), ("Diffusion/alone", "Diffusion"),
         ("Diffusion/Support", "\\quad + support switch"), ("Diffusion/Uncertainty", "\\quad + uncertainty switch"),
+        ("DiffusionR/alone", "Diffusion, revised"), ("DiffusionR/Support", "\\quad + support switch"),
+        ("DiffusionR/Uncertainty", "\\quad + uncertainty switch"), ("Ensemble", "MLP + ensemble switch"),
         ("Labeler", "Labeler alone")]
 
 
