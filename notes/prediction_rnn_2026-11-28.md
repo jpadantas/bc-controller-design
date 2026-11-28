@@ -16,4 +16,10 @@ Predictions (means over held-out operators, each the mean over three seeds; "MLP
  R4. On Lift, the support switch around BC-RNN is closer than the labeler alone to the held-out operator's timed
      path for at least five of six operators.
 
-Outcome: (to be filled in after the run)
+Outcome (2026-11-28, code/robo/strong_table.py; means over operators, %):
+ R1 holds. BC-RNN alone: Can 87 vs MLP 46, Square 34 vs 6 (Lift 86 vs 63).
+ R2 holds. Support minus alone: Can +0.6, Square +4.2.
+ R3 holds. Recovery alone: Lift 1, Can 2, Square 0.
+ R4 holds. Support switch closer than the labeler on Lift for 6/6 operators (6.8 vs 11.6 cm).
+Not predicted: around BC-RNN the support switch recovers from 81 / 17 / 28% (Lift / Can / Square) and the
+uncertainty switch from 63 / 14 / 2%.

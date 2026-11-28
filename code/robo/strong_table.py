@@ -19,10 +19,8 @@ TASKS = ["lift", "can", "square"]
 def load():
     """Registered run (strong) and the revised diffusion recipe (strong_v2, class renamed DiffusionR)."""
     out = []
-    for run in ("strong", "strong_v2"):
-        f = os.path.join(ROOT, "outputs", "robo", run, "strong_rollouts.csv")
-        d = pd.read_csv(f) if os.path.exists(f) else pd.concat(
-            pd.read_csv(p) for p in glob.glob(os.path.join(ROOT, "outputs", "robo", run + "_parts", "*.csv")))
+    for run in ("strong", "strong_v2", "strong_rnn"):
+        d = pd.concat(pd.read_csv(p) for p in glob.glob(os.path.join(ROOT, "outputs", "robo", run + "_parts", "*.csv")))
         if run == "strong_v2":
             d["cls"] = "DiffusionR"
         out.append(d)
@@ -108,13 +106,24 @@ def score(op):
     print("D3", g, "holds" if all(a < b for a, b in g.values()) else "fails")
     n = int((v("lift", "DiffusionR/Support", "path") < v("lift", "Labeler", "path")).sum())
     print(f"D4 {n}/6", "holds" if n >= 5 else "fails")
+    print("--- BC-RNN (prediction_rnn_2026-11-28.md)")
+    g = {t: (round(100 * v(t, "RNN/alone", "succ").mean()), round(100 * v(t, "BC", "succ").mean())) for t in ["can", "square"]}
+    print("R1", g, "holds" if all(a > b for a, b in g.values()) else "fails")
+    g = {t: round(100 * (v(t, "RNN/Support", "succ").mean() - v(t, "RNN/alone", "succ").mean()), 1) for t in ["can", "square"]}
+    print("R2", g, "holds" if all(x < 10 for x in g.values()) else "fails")
+    g = {t: round(100 * v(t, "RNN/alone", "rec").mean()) for t in TASKS}
+    print("R3", g, "holds" if all(x < 30 for x in g.values()) else "fails")
+    n = int((v("lift", "RNN/Support", "path") < v("lift", "Labeler", "path")).sum())
+    print(f"R4 {n}/6", "holds" if n >= 5 else "fails")
 
 
 ROWS = [("BC", "MLP (main studies)"), ("GMM/alone", "GMM"), ("GMM/Support", "\\quad + support switch"),
         ("GMM/Uncertainty", "\\quad + uncertainty switch"), ("Diffusion/alone", "Diffusion"),
         ("Diffusion/Support", "\\quad + support switch"), ("Diffusion/Uncertainty", "\\quad + uncertainty switch"),
         ("DiffusionR/alone", "Diffusion, revised"), ("DiffusionR/Support", "\\quad + support switch"),
-        ("DiffusionR/Uncertainty", "\\quad + uncertainty switch"), ("Ensemble", "MLP + ensemble switch"),
+        ("DiffusionR/Uncertainty", "\\quad + uncertainty switch"), ("RNN/alone", "BC-RNN"),
+        ("RNN/Support", "\\quad + support switch"), ("RNN/Uncertainty", "\\quad + uncertainty switch"),
+        ("Ensemble", "MLP + ensemble switch"),
         ("Labeler", "Labeler alone")]
 
 
