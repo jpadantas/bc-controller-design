@@ -1,10 +1,11 @@
 """Human reference distances on robomimic Lift: for each demonstration of a held-out operator (every other one,
 as in lift_study.py), the end-effector path distance (time-aligned RMS, as in the study) to the demonstration of
 ANOTHER operator whose initial cube position is closest, and to the closest other demonstration of the SAME
-operator. Writes outputs/robo/between_operators.csv (with ROBO_TASK=can: Can, between_operators_can.csv).
+operator. Writes outputs/robo/between_operators.csv (with ROBO_TASK=can or square: between_operators_<task>.csv).
 
     ROBO_DATA=<path> python lift_between.py
     ROBO_TASK=can ROBO_CAN=<path> python lift_between.py
+    ROBO_TASK=square ROBO_SQUARE=<path> python lift_between.py
 """
 import os
 import sys
@@ -15,6 +16,8 @@ import pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 if os.environ.get("ROBO_TASK") == "can":
     import can_common as L  # noqa: E402
+elif os.environ.get("ROBO_TASK") == "square":
+    import square_common as L  # noqa: E402
 else:
     import lift_common as L  # noqa: E402
 
@@ -41,8 +44,9 @@ def main():
             rows.append(dict(held_out=h, between=rms(others[j]["obs"][:, 0:3], d["obs"][:, 0:3]),
                              within=rms(same[k]["obs"][:, 0:3], d["obs"][:, 0:3])))
     df = pd.DataFrame(rows)
-    out = os.path.join(ROOT, "outputs", "robo", "between_operators_can.csv" if os.environ.get("ROBO_TASK") == "can"
-                       else "between_operators.csv")
+    task = os.environ.get("ROBO_TASK", "lift")
+    out = os.path.join(ROOT, "outputs", "robo", "between_operators.csv" if task == "lift"
+                       else f"between_operators_{task}.csv")
     df.to_csv(out, index=False)
     print(df.groupby("held_out")[["between", "within"]].mean().mul(100).round(1))
     print("mean (cm):", df[["between", "within"]].mean().mul(100).round(1).to_dict())

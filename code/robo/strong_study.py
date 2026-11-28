@@ -90,7 +90,28 @@ def data(task, held):
     idx = [np.minimum(np.arange(len(x["actions"]))[:, None] + np.arange(H)[None, :], len(x["actions"]) - 1)
            for x in demos]
     Ach = np.concatenate([x["actions"][i].reshape(len(i), -1) for x, i in zip(demos, idx)]).astype(np.float32)
+    global EP
+    EP = np.concatenate([np.full(len(x["obs"]), i) for i, x in enumerate(demos)])  # episode of each frame (RNN)
     return d, kw, O, A, Ach, opid
+
+
+EP = None
+RH, RNN_HIDDEN = 10, 400   # BC-RNN (robomimic BC-RNN-GMM): 2-layer LSTM over 10-step windows, GMM head
+
+
+def rnn_net(nobs):
+    import torch.nn as nn
+
+    class Net(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.lstm = nn.LSTM(nobs, RNN_HIDDEN, 2, batch_first=True)
+            self.head = nn.Linear(RNN_HIDDEN, NMIX * (1 + 2 * 7))
+
+        def forward(self, z):
+            return self.head(self.lstm(z)[0])
+
+    return Net()
 
 
 def trunk(nin, nout, hidden):
@@ -125,6 +146,12 @@ def fit(cls, O, A, Ach, seed, cache):
     if cls == "GMM":
         net = trunk(O.shape[1], NMIX * (1 + 2 * 7), hidden)
         Yt = torch.tensor(A, dtype=torch.float32, device=dev)
+    elif cls == "RNN":
+        net = rnn_net(O.shape[1])
+        Yt = torch.tensor(A, dtype=torch.float32, device=dev)
+        ends = np.r_[np.flatnonzero(np.diff(EP)) + 1, len(EP)]
+        st = np.r_[0, ends[:-1]]
+        starts = np.concatenate([np.arange(a, b - RH + 1) for a, b in zip(st, ends) if b - a >= RH])
     else:
         net = film_net(O.shape[1], hidden) if FILM else trunk(O.shape[1] + H * 7 + 32, H * 7, hidden)
         am, asd = np.zeros(H * 7, np.float32), np.ones(H * 7, np.float32)
@@ -138,7 +165,8 @@ def fit(cls, O, A, Ach, seed, cache):
         if V2 and DIFF_STEPS:
             steps = DIFF_STEPS
     net.to(dev)
-    opt = torch.optim.Adam(net.parameters(), lr=(3e-4 if V2 else 1e-4) if cls == "Diffusion" else 1e-3)
+    opt = torch.optim.Adam(net.parameters(), lr=(3e-4 if V2 else 1e-4) if cls == "Diffusion" else
+                           1e-4 if cls == "RNN" else 1e-3)
     use_ema = V2 and cls == "Diffusion"
     if use_ema:
         import copy
@@ -153,6 +181,18 @@ def fit(cls, O, A, Ach, seed, cache):
 
     if os.path.exists(cache):
         net.load_state_dict(torch.load(cache, map_location=dev))
+    elif cls == "RNN":
+        ar = torch.arange(RH, device=dev)
+        for _ in range(steps):
+            j = torch.tensor(rng.choice(starts, 100), device=dev)[:, None] + ar
+            lg, mu, ls = gmm(net(Xt[j]).reshape(-1, NMIX * 15))
+            y = Yt[j].reshape(-1, 1, 7)
+            lp = (-0.5 * ((y - mu) / ls.exp()) ** 2 - ls - 0.5 * np.log(2 * np.pi)).sum(-1)
+            loss = -torch.logsumexp(torch.log_softmax(lg, 1) + lp, 1).mean()
+            opt.zero_grad(); loss.backward(); opt.step()
+        tmp = cache + f".{os.getpid()}.tmp"
+        torch.save({k: v.cpu() for k, v in net.state_dict().items()}, tmp)
+        os.replace(tmp, cache)
     else:
         done = 0
         while done < steps:
@@ -203,9 +243,11 @@ class Policy:
     def reset(self):
         self.rng = np.random.default_rng(self.seed)
         self.buf = []
+        self.hist = []
 
     def invalidate(self):
         self.buf = []
+        self.hist = []
 
     def _z(self, x):
         import torch
@@ -214,7 +256,11 @@ class Policy:
     def _mix(self, x):
         import torch
         with torch.no_grad():
-            lg, mu, ls = self.gmm(self.net(self._z(x)))
+            if self.cls == "RNN":   # one rollout step: the window since the last reset; rows: windows of length 1
+                z = self._z(np.array(self.hist + [x]))[None] if np.ndim(x) == 1 else self._z(x)[:, None, :]
+                lg, mu, ls = self.gmm(self.net(z)[:, -1])
+            else:
+                lg, mu, ls = self.gmm(self.net(self._z(x)))
         return torch.softmax(lg, 1).numpy(), mu.numpy(), ls.exp().numpy()
 
     def _sample(self, x, n):
@@ -242,7 +288,7 @@ class Policy:
 
     def uncertainty(self, x):
         """Predictive spread (rows of x): total variance of the mixture, or of the first action over NS samples."""
-        if self.cls == "GMM":
+        if self.cls in ("GMM", "RNN"):
             p, mu, sd = self._mix(x)
             mean = (p[:, :, None] * mu).sum(1)
             second = (p[:, :, None] * (sd ** 2 + mu ** 2)).sum(1)
@@ -250,9 +296,11 @@ class Policy:
         return self._sample(x, NS)[:, :, 0, :].var(1).sum(1)
 
     def __call__(self, x):
-        if self.cls == "GMM":
+        if self.cls in ("GMM", "RNN"):
             p, mu, _ = self._mix(x)
             k = self.rng.choice(NMIX, p=p[0] / p[0].sum())
+            if self.cls == "RNN":   # reset the hidden state every RH steps, as robomimic does at rollout
+                self.hist = [] if len(self.hist) + 1 >= RH else self.hist + [np.asarray(x)]
             return mu[0, k]
         if not self.buf:
             self.buf = list(self._sample(x, 1)[0, 0, :EXE])
